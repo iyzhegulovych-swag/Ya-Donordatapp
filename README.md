@@ -21,9 +21,9 @@
 у гілку `data`. Додаток читає їх за адресами:
 
 ```
-https://raw.githubusercontent.com/morabatur/Ya-Donor-data/data/needs.json
-https://raw.githubusercontent.com/morabatur/Ya-Donor-data/data/articles.json
-https://raw.githubusercontent.com/morabatur/Ya-Donor-data/data/donor-days.json
+https://raw.githubusercontent.com/iyzhegulovych-swag/Ya-Donordatapp/data/needs.json
+https://raw.githubusercontent.com/iyzhegulovych-swag/Ya-Donordatapp/data/articles.json
+https://raw.githubusercontent.com/iyzhegulovych-swag/Ya-Donordatapp/data/donor-days.json
 ```
 
 Якщо мережі немає або щось зламалося, додаток показує копії, вшиті у
