@@ -1,0 +1,82 @@
+name: Оновити дані додатку
+
+# Раз на добу збирає потребу у крові з donor.utcc.gov.ua і кладе три файли
+# у гілку data: needs.json (потреба по центрах), articles.json (пам'ятка
+# донора) і donor-days.json (розклад днів донора). Додаток ЯДонор читає
+# їх напряму з raw.githubusercontent.com, тому окремий сервер не потрібен.
+#
+# Цей репозиторій має лишатися публічним: інакше посилання не відкриється
+# з телефона.
+
+on:
+  schedule:
+    - cron: "0 5 * * *"   # щодня о 5:00 UTC
+  workflow_dispatch:       # і вручну з вкладки Actions
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Зібрати потребу у крові
+        run: python3 fetch_blood_needs.py --app -o needs.json
+
+      - name: Перевірити, що потреба зібралася
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          data = json.load(open("needs.json", encoding="utf-8"))
+          count = len(data["centers"])
+          print(f"центрів у файлі: {count}")
+          if count < 10:
+              sys.exit(f"замало центрів ({count}) — схоже, змінилася верстка сайту")
+          PY
+
+      - name: Перевірити, що статті читаються
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          data = json.load(open("articles.json", encoding="utf-8"))
+          count = len(data["articles"])
+          print(f"статей у файлі: {count}")
+          if count == 0:
+              sys.exit("у файлі немає жодної статті")
+          PY
+
+      - name: Перевірити розклад днів донора
+        run: |
+          python3 - <<'PY'
+          import json, re, sys
+          data = json.load(open("donor-days.json", encoding="utf-8"))
+          days = data["days"]
+          print(f"днів донора у файлі: {len(days)}")
+          seen = set()
+          for day in days:
+              if not day.get("title"):
+                  sys.exit(f"{day.get('id')}: немає заголовка")
+              if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", day.get("date", "")):
+                  sys.exit(f"{day.get('id')}: дата має бути у форматі 2026-12-05")
+              if not day.get("centerId") and not day.get("place"):
+                  sys.exit(f"{day.get('id')}: потрібен або centerId, або place")
+              if day["id"] in seen:
+                  sys.exit(f"{day['id']}: такий id уже є")
+              seen.add(day["id"])
+          PY
+
+      - name: Опублікувати в гілку data
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git checkout --orphan data-tmp
+          git rm -rf --cached . > /dev/null
+          git add -f needs.json articles.json donor-days.json
+          git commit -m "Дані додатку на $(date -u +%Y-%m-%d)"
+          git push -f origin data-tmp:data
